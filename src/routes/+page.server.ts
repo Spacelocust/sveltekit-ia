@@ -1,21 +1,21 @@
 import { fail, redirect } from '@sveltejs/kit';
 
+import { queryGPT, searchCountry } from '$lib/server/GPT';
 import { auth } from '$lib/server/auth';
 
 import type { Actions } from './$types';
 
 export const actions = {
-  logout: async ({ locals, cookies }) => {
-    if (!locals.session) {
-      throw fail(401, { error: 'You are not logged in.' });
-    }
+  searchCountry: async ({ request }) => {
+    const data = await request.formData();
+    const search = (data.get('search') ?? '') as string;
 
-    await auth.invalidateSession(locals.session.sessionId);
+    const completions = await queryGPT({ inputSystem: searchCountry, inputUser: search }, false);
 
-    const sessionCookie = auth.createSessionCookie(null);
+    const result = completions.choices[0].message.content ?? 'null';
 
-    cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+    if (result === 'null') return fail(404, { data: { result: [] }, error: true });
 
-    throw redirect(303, '/');
+    return { data: { result: JSON.parse(result) }, error: false };
   },
 } satisfies Actions;
